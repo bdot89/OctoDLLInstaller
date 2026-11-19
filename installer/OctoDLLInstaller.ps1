@@ -24,7 +24,7 @@ param([string]$GameDir = "", [switch]$NoWindow, [string]$Snapshot = "", [switch]
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $headers = @{ "User-Agent" = "Octo-DLL-Installer" }
-$VERSION = "1.1.0"
+$VERSION = "1.2.0"
 $OCTOGIT = "https://octowow.st/git/api/v1/repos/"
 
 # Fields: Name, File (the DLL in the game folder), About, and where it comes from:
@@ -427,6 +427,86 @@ function Install-Helper($d, [string]$game, [string]$stamp, [bool]$check, $say) {
   return "changed"
 }
 
+# ------------------------------------------------------------------ a fresh install (1.2.0)
+# (18 Nov 2026, user: a friend's fresh install "had issues getting the dlls to work and getting the link
+# working in launcher".) VanillaFixes (hannesmann/vanillafixes) is what loads dlls.txt: OctoLauncher starts
+# the game through VanillaFixes.exe + VfPatcher.dll when its vanillaFixes mod is on. Only those two files
+# are taken from its release - never its d3d9.dll / dxvk.conf (OctoLauncher's DXVK is newer).
+# (the -dxvk zip: on our test PC Windows Defender blocked the plain zip's extra DLL and the whole unpack with
+# it; only the two files are ever taken out of the zip, nothing else is unpacked)
+$VFPINNED = "https://github.com/hannesmann/vanillafixes/releases/download/v1.5.3/vanillafixes-1.5.3-dxvk.zip"
+function Install-VanillaFixes([string]$game, [string]$temp, [bool]$check, $say) {
+  $missing = @("VanillaFixes.exe", "VfPatcher.dll" | Where-Object { -not (Test-Path (Join-Path $game $_)) })
+  if ($missing.Count -eq 0) { & $say "VanillaFixes: there (it is what loads dlls.txt; OctoLauncher keeps it up to date)." "ok"; return $false }
+  if ($check) { & $say ("VanillaFixes: missing ({0}) - would be installed." -f ($missing -join ", ")) "info"; return $true }
+  & $say "Getting VanillaFixes (it loads the DLLs in dlls.txt)..." "dim"
+  $url = $null
+  try {
+    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/hannesmann/vanillafixes/releases/latest" -Headers $headers -TimeoutSec 30
+    $a = @($rel.assets | Where-Object { $_.name -match '^vanillafixes-[\d.]+-dxvk\.zip$' }) | Select-Object -First 1
+    if ($a) { $url = $a.browser_download_url }
+  } catch { }
+  if (-not $url) { $url = $VFPINNED }
+  $zpath = Join-Path $temp "vanillafixes.zip"
+  try { Invoke-WebRequest -Uri $url -OutFile $zpath -Headers $headers -UseBasicParsing -TimeoutSec 120 }
+  catch { & $say ("VanillaFixes: not done - " + (Get-Why $_)) "bad"; return $false }
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $zip = $null
+  try {
+    $zip = [IO.Compression.ZipFile]::OpenRead($zpath)
+    foreach ($f in $missing) {
+      $e = $zip.Entries | Where-Object { $_.Name -ieq $f } | Select-Object -First 1
+      if (-not $e) { & $say ("VanillaFixes: {0} was not in the download." -f $f) "bad"; return $false }
+      $t = Join-Path $game $f
+      [IO.Compression.ZipFileExtensions]::ExtractToFile($e, $t, $true)
+      try { Unblock-File $t } catch { }
+    }
+  } catch {
+    & $say ("VanillaFixes: not done - " + (Get-Why $_)) "bad"
+    return $false
+  } finally {
+    if ($zip) { $zip.Dispose() }
+  }
+  & $say "VanillaFixes: installed. In OctoLauncher turn its vanillaFixes mod on, so the game starts through it." "good"
+  return $true
+}
+
+# the DLLs OctoLauncher itself puts in (kept in a new dlls.txt when they are in the folder)
+$LAUNCHERDLLS = @("VanillaHelpers.dll", "nampower.dll", "UnitXP_SP3.dll", "VanillaMultiMonitorFix.dll", "transmogfix.dll", "ClassicAPI.dll")
+function New-DllList([string]$game) {
+  $lines = New-Object System.Collections.ArrayList
+  [void]$lines.Add("# DLLs VanillaFixes loads (made by the Octo DLL Installer; OctoLauncher adds its own mods here too)")
+  foreach ($f in $LAUNCHERDLLS) { if (Test-Path (Join-Path $game $f)) { [void]$lines.Add($f) } }
+  return ,$lines
+}
+
+# VanillaFixes asks you to confirm whenever the list of DLLs changes. OctoLauncher writes dlls.txt.cache
+# (each DLL's full path, one a line) after it changes dlls.txt, so it does not ask about its own changes;
+# this does the same after ours.
+function Write-DllCache([string]$game) {
+  $names = @(Get-Content (Join-Path $game "dlls.txt") | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith("#") })
+  $cache = Join-Path $game "dlls.txt.cache"
+  if ($names.Count -eq 0) { Remove-Item $cache -ErrorAction SilentlyContinue; return }
+  $body = ($names | ForEach-Object { if ([IO.Path]::IsPathRooted($_)) { $_ } else { Join-Path $game $_ } }) -join "`r`n"
+  [IO.File]::WriteAllText($cache, $body)
+}
+
+# antivirus programs often delete a DLL a moment after it is copied in: every file this run looked after
+# (the ticked DLLs that are in dlls.txt, and VanillaFixes) that is not in the folder any more is named
+function Test-Removed([string]$game, $files, $say) {
+  Start-Sleep -Milliseconds 1500
+  $listed = @(Get-Content (Join-Path $game "dlls.txt") | ForEach-Object { $_.Trim().ToLower() })
+  $gone = @()
+  foreach ($f in $files) {
+    if ($listed -contains $f.ToLower() -and -not (Test-Path (Join-Path $game $f))) { $gone += $f }
+  }
+  foreach ($f in @("VanillaFixes.exe", "VfPatcher.dll")) { if (-not (Test-Path (Join-Path $game $f))) { $gone += $f } }
+  if ($gone.Count -gt 0) {
+    & $say ("Missing from the game folder: {0}. Your antivirus most likely removed them - press Antivirus help below, restore them (or use OctoLauncher's Restore blocked files), then press Install / update again." -f ($gone -join ", ")) "bad"
+  }
+  return $gone.Count
+}
+
 # the whole run for the ticked DLLs; returns the summary line
 function Invoke-Install([string]$game, $picked, [bool]$check, $say) {
   if (-not (Test-GameDir $game)) { throw "Pick your game folder first - the one with WoW.exe in it." }
@@ -439,12 +519,17 @@ function Invoke-Install([string]$game, $picked, [bool]$check, $say) {
     if ($running.Count -gt 0) { throw "The game is running. Close it completely, then press the button again." }
   }
   $list = Join-Path $game "dlls.txt"
-  if (-not (Test-Path $list)) {
-    throw "There's no dlls.txt in your game folder. Start the game once from OctoLauncher with the vanillaHelpers mod ticked (that makes it), close the game, then press the button again."
-  }
-  $lines = New-Object System.Collections.ArrayList
-  foreach ($l in [IO.File]::ReadAllLines($list)) { [void]$lines.Add($l) }
   $script:listChanged = $false
+  $fresh = -not (Test-Path $list)
+  if ($fresh) {
+    # (1.2.0) a fresh install has no dlls.txt until the game was started once: make it instead of stopping
+    $lines = New-DllList $game
+    $script:listChanged = $true
+    & $say $(if ($check) { "dlls.txt: none yet - would be made." } else { "dlls.txt: none yet - making it." }) $(if ($check) { "info" } else { "good" })
+  } else {
+    $lines = New-Object System.Collections.ArrayList
+    foreach ($l in [IO.File]::ReadAllLines($list)) { [void]$lines.Add($l) }
+  }
   # downloads go to a folder inside the game folder (removed after), so an
   # antivirus exclusion for the game folder covers them too (SuperWoW)
   $temp = Join-Path $game ("DLL-download-" + [Guid]::NewGuid().ToString("N").Substring(0, 8))
@@ -453,6 +538,7 @@ function Invoke-Install([string]$game, $picked, [bool]$check, $say) {
   $changed = 0
   $later = New-Object System.Collections.ArrayList
   try {
+    if (@(Install-VanillaFixes $game $temp $check $say)[-1] -eq $true) { $changed++ }
     foreach ($d in $picked) {
       if ($d.Helper) { [void]$later.Add($d); continue }
       & $say ("Getting {0}..." -f $d.Name) "dim"
@@ -475,7 +561,7 @@ function Invoke-Install([string]$game, $picked, [bool]$check, $say) {
     }
     if ($script:listChanged -and -not $check) {
       $backup = "$list.pfui-backup"
-      if (-not (Test-Path $backup)) { Copy-Item $list $backup }
+      if (-not $fresh -and -not (Test-Path $backup)) { Copy-Item $list $backup }
       [IO.File]::WriteAllLines($list, [string[]]$lines.ToArray())
     }
     foreach ($d in $later) {
@@ -483,12 +569,19 @@ function Invoke-Install([string]$game, $picked, [bool]$check, $say) {
       $r = @(Install-Helper $d $game $stamp $check $say)
       if ($r.Count -gt 0 -and $r[$r.Count - 1] -eq "changed") { $changed++ }
     }
+    if (-not $check -and (Test-Path $list)) { try { Write-DllCache $game } catch { } }
   } finally {
     Remove-Item -Recurse -Force $temp -ErrorAction SilentlyContinue
   }
+  # pfUI Octo itself comes through OctoLauncher's Addons tab (it updates it from there)
+  if (-not (Test-Path (Join-Path $game "Interface\AddOns\pfUI\pfUI.toc"))) {
+    & $say "pfUI Octo is not installed yet: in OctoLauncher open Addons > Add custom git addon and paste https://github.com/bdot89/pfUI" "info"
+  }
   if ($check) { return "Check done - nothing was changed." }
+  $gone = @(Test-Removed $game @($picked | ForEach-Object { $_.File }) $say)[-1]
+  if ($gone -gt 0) { return "Not finished: your antivirus removed some files (named above). Restore them, then press Install / update again." }
   if ($changed -gt 0 -or $script:listChanged) {
-    return "Done! Start the game from OctoLauncher as usual. If it won't start, copy the old DLL back from the DLL-backups folder, or put dlls.txt.pfui-backup back as dlls.txt."
+    return "Done! Start the game from OctoLauncher as usual (its vanillaFixes mod must be on). If it won't start, copy the old DLL back from the DLL-backups folder, or put dlls.txt.pfui-backup back as dlls.txt."
   }
   return "Everything you ticked is already the newest - nothing to do."
 }
@@ -719,8 +812,8 @@ function Refresh-State {
       $dirState.Text = "OK - WoW.exe and dlls.txt found."
       $dirState.ForeColor = $green
     } else {
-      $dirState.Text = "WoW.exe found, but no dlls.txt: start the game once from OctoLauncher with vanillaHelpers ticked, close it, then come back."
-      $dirState.ForeColor = $gold
+      $dirState.Text = "WoW.exe found, no dlls.txt yet (a fresh install) - Install / update makes it, and sets up VanillaFixes if needed."
+      $dirState.ForeColor = $green
     }
   } elseif ($g) {
     $dirState.Text = "No WoW.exe in this folder. Press Browse and pick the folder WoW.exe is in."

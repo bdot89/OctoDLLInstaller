@@ -5,6 +5,25 @@ An install / update tool for the OctoWoW client DLLs: it puts in the ones you
 don't have and brings the ones you have up to the newest version, straight
 from their authors' release pages. You don't need pfUI or any add-on for this.
 
+FRESH INSTALL - THE WHOLE SETUP, IN ORDER
+  1. Install the game with OctoLauncher and let it finish.
+  2. In OctoLauncher's Settings / Mods, make sure vanillaFixes is ON. VanillaFixes
+     is what loads the DLLs: with it off, none of them load. Leave vanillaHelpers,
+     nampower, unitXp and dxvk on too.
+  3. Close the game completely.
+  4. Run this tool (HOW TO USE below) and press Install / update. On a fresh
+     install it also makes dlls.txt, puts in VanillaFixes if it is missing
+     (VanillaFixes.exe + VfPatcher.dll only), and puts in SuperWoW, which the
+     launcher doesn't install.
+  5. If it says a file is missing afterwards, your antivirus removed it: see
+     SUPERWOW AND WINDOWS DEFENDER below, or use OctoLauncher's "Restore blocked
+     files", then press Install / update again.
+  6. Add pfUI Octo in the launcher: OctoLauncher > Addons > Add custom git addon >
+     paste  https://github.com/bdot89/pfUI  > Install. The launcher keeps it up
+     to date from then on. Use exactly that link.
+  7. Start the game from OctoLauncher. The first time after new DLLs went in,
+     VanillaFixes may ask you to confirm the DLL list: say yes.
+
 HOW TO USE
   1. Close the game completely.
   2. Double-click "Install or update DLLs.bat". A window opens.
@@ -45,8 +64,10 @@ OPTIONAL EXTRAS (from the Vanilla Addon Index's DLL list, unticked)
   in DLL-backups\AddOns.
 
 LEFT OUT OF THE INDEX'S LIST, AND WHY
-  VanillaHelpers, VanillaMultiMonitorFix, DXVK, VanillaFixes
+  VanillaHelpers, VanillaMultiMonitorFix, DXVK
                 OctoLauncher puts these in and keeps them up to date itself.
+  VanillaFixes  also the launcher's, but the tool puts it in when it is missing
+                (only VanillaFixes.exe and VfPatcher.dll, never its older DXVK).
   LeviFix       OctoLauncher already has this fix.
   No1600x1200   clashes with VanillaMultiMonitorFix, which OctoLauncher puts in.
   Vanilla Tweaks, Modernization Tool
@@ -63,8 +84,11 @@ GOOD TO KNOW
   - Your old DLLs and addons are kept in the DLL-backups folder inside the game folder.
   - New DLLs are added to dlls.txt (the list the launcher loads). The first time,
     a copy of your old list is saved as dlls.txt.pfui-backup.
-  - No dlls.txt yet? Start the game once from OctoLauncher with the vanillaHelpers
-    mod ticked, close it, then run the tool again.
+  - No dlls.txt yet (a fresh install)? The tool makes it, keeping the launcher's
+    own DLLs that are already in the folder.
+  - After changing dlls.txt it writes dlls.txt.cache the way OctoLauncher does, so
+    VanillaFixes doesn't keep asking about the new DLLs.
+  - After installing it checks nothing it put in was removed by your antivirus.
   - Antivirus programs often block SuperWoW (see below). If it is skipped, the
     other DLLs still install.
 
