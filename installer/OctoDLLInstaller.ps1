@@ -24,7 +24,7 @@ param([string]$GameDir = "", [switch]$NoWindow, [string]$Snapshot = "", [switch]
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $headers = @{ "User-Agent" = "Octo-DLL-Installer" }
-$VERSION = "1.2.0"
+$VERSION = "1.3.0"
 $OCTOGIT = "https://octowow.st/git/api/v1/repos/"
 
 # Fields: Name, File (the DLL in the game folder), About, and where it comes from:
@@ -507,6 +507,33 @@ function Test-Removed([string]$game, $files, $say) {
   return $gone.Count
 }
 
+# (1.3.0) a "Play OctoWoW" desktop shortcut that starts the game through VanillaFixes.exe (it finds WoW.exe in
+# its own folder - nothing has to be dragged onto it). Starting WoW.exe itself loads no DLLs.
+# $script:DESKTOP can be set for tests. Returns $true when it made or fixed the shortcut.
+function New-PlayShortcut([string]$game, [bool]$check, $say) {
+  $vf = Join-Path $game "VanillaFixes.exe"
+  if (-not (Test-Path $vf)) { return $false }
+  $desk = $script:DESKTOP
+  if (-not $desk) { $desk = [Environment]::GetFolderPath("Desktop") }
+  if (-not $desk -or -not (Test-Path $desk)) { return $false }
+  $lnk = Join-Path $desk "Play OctoWoW.lnk"
+  $sh = New-Object -ComObject WScript.Shell
+  if (Test-Path $lnk) {
+    $old = $sh.CreateShortcut($lnk)
+    if ($old.TargetPath -ieq $vf) { return $false }
+  }
+  if ($check) { & $say "Desktop shortcut ""Play OctoWoW"" (starts the game through VanillaFixes): would be made." "info"; return $false }
+  $s = $sh.CreateShortcut($lnk)
+  $s.TargetPath = $vf
+  $s.WorkingDirectory = $game
+  $wow = Join-Path $game "WoW.exe"
+  if (Test-Path $wow) { $s.IconLocation = "$wow,0" }
+  $s.Description = "Starts OctoWoW through VanillaFixes, so the DLLs in dlls.txt load"
+  $s.Save()
+  & $say "Desktop shortcut ""Play OctoWoW"" made: it starts the game through VanillaFixes, so your DLLs load." "good"
+  return $true
+}
+
 # the whole run for the ticked DLLs; returns the summary line
 function Invoke-Install([string]$game, $picked, [bool]$check, $say) {
   if (-not (Test-GameDir $game)) { throw "Pick your game folder first - the one with WoW.exe in it." }
@@ -577,13 +604,16 @@ function Invoke-Install([string]$game, $picked, [bool]$check, $say) {
   if (-not (Test-Path (Join-Path $game "Interface\AddOns\pfUI\pfUI.toc"))) {
     & $say "pfUI Octo is not installed yet: in OctoLauncher open Addons > Add custom git addon and paste https://github.com/bdot89/pfUI" "info"
   }
+  $made = $false
+  try { $made = @(New-PlayShortcut $game $check $say)[-1] -eq $true } catch { & $say ("Could not make the desktop shortcut: {0}" -f $_.Exception.Message) "dim" }
   if ($check) { return "Check done - nothing was changed." }
   $gone = @(Test-Removed $game @($picked | ForEach-Object { $_.File }) $say)[-1]
   if ($gone -gt 0) { return "Not finished: your antivirus removed some files (named above). Restore them, then press Install / update again." }
-  if ($changed -gt 0 -or $script:listChanged) {
-    return "Done! Start the game from OctoLauncher as usual (its vanillaFixes mod must be on). If it won't start, copy the old DLL back from the DLL-backups folder, or put dlls.txt.pfui-backup back as dlls.txt."
+  $how = "From now on start the game with OctoLauncher's Play (its vanillaFixes mod on) or the ""Play OctoWoW"" desktop shortcut (= VanillaFixes.exe) - never WoW.exe itself, which loads no DLLs."
+  if ($changed -gt 0 -or $script:listChanged -or $made) {
+    return "Done! $how If it won't start, copy the old DLL back from the DLL-backups folder, or put dlls.txt.pfui-backup back as dlls.txt."
   }
-  return "Everything you ticked is already the newest - nothing to do."
+  return "Everything you ticked is already the newest - nothing to do. $how"
 }
 
 if ($NoWindow) { return }

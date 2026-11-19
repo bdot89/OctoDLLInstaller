@@ -19,7 +19,15 @@ New OctoWoW install, or the DLLs or addons don't work? Do these in order.
 5. If the tool says a file is **missing** afterwards, your antivirus removed it: see *SuperWoW and Windows Defender* below, or use OctoLauncher's **Restore blocked files**, then press Install / update again.
 6. **Add pfUI Octo in the launcher:** OctoLauncher > **Addons** > **Add custom git addon** > paste
    **`https://github.com/bdot89/pfUI`** > **Install**. The launcher then keeps it up to date. (Use that exact link: it is the repository the launcher can read. The *pfUI-Octo* repository is where the releases are.)
-7. Start the game **from OctoLauncher**. The first time after new DLLs went in, VanillaFixes may ask you to confirm the DLL list: say yes.
+7. Start the game **from OctoLauncher**, or with the **Play OctoWoW** shortcut the tool puts on your desktop. The first time after new DLLs went in, VanillaFixes may ask you to confirm the DLL list: say yes.
+
+## Starting the game (old installs too)
+
+The DLLs only load when the game starts **through VanillaFixes**. Starting `WoW.exe` itself loads none of them.
+
+- **OctoLauncher:** turn its **vanillaFixes** mod on (Settings / Mods) and press Play as usual.
+- **Without the launcher**, or an old install: run this tool once. It puts VanillaFixes in if it's missing and makes a **Play OctoWoW** shortcut on your desktop. Always start the game with that shortcut, or by double-clicking `VanillaFixes.exe` in the game folder.
+- You don't need to drag `WoW.exe` onto VanillaFixes: it finds `WoW.exe` in its own folder by itself. Dragging is only needed if your game's exe has a different name.
 
 ## How to use
 
@@ -28,7 +36,7 @@ New OctoWoW install, or the DLLs or addons don't work? Do these in order.
 3. Double-click **`Install or update DLLs.bat`**. The window opens.
 4. Check the **game folder** is right (the folder with `WoW.exe` in it). If it isn't, press **Browse** and pick it.
 5. **Tick** the DLLs you want. The top list, **For our addons**, is ticked to start with; the **Optional extras** under it are up to you.
-6. Press **Install / update**. When it says *Done*, start the game from **OctoLauncher** as usual.
+6. Press **Install / update**. When it says *Done*, start the game from **OctoLauncher** as usual, or with the **Play OctoWoW** desktop shortcut (never `WoW.exe` itself).
 
 **To update later**, just run it again: DLLs you don't have are installed, older ones are updated, and the newest ones are left alone.
 **Check for updates** only tells you what would change. It changes nothing. **Right-click** a DLL to open its page.

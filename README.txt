@@ -21,8 +21,20 @@ FRESH INSTALL - THE WHOLE SETUP, IN ORDER
   6. Add pfUI Octo in the launcher: OctoLauncher > Addons > Add custom git addon >
      paste  https://github.com/bdot89/pfUI  > Install. The launcher keeps it up
      to date from then on. Use exactly that link.
-  7. Start the game from OctoLauncher. The first time after new DLLs went in,
+  7. Start the game from OctoLauncher, or with the "Play OctoWoW" shortcut the
+     tool puts on your desktop. The first time after new DLLs went in,
      VanillaFixes may ask you to confirm the DLL list: say yes.
+
+STARTING THE GAME (OLD INSTALLS TOO)
+  The DLLs only load when the game starts through VanillaFixes. Starting
+  WoW.exe itself loads none of them.
+  - OctoLauncher: turn its vanillaFixes mod on and press Play as usual.
+  - Without the launcher, or an old install: run this tool once. It puts
+    VanillaFixes in if it is missing and makes a "Play OctoWoW" shortcut on
+    your desktop. Always start the game with that shortcut, or by
+    double-clicking VanillaFixes.exe in the game folder.
+  - No need to drag WoW.exe onto VanillaFixes: it finds WoW.exe in its own
+    folder by itself.
 
 HOW TO USE
   1. Close the game completely.
@@ -32,7 +44,8 @@ HOW TO USE
   4. Tick the DLLs you want. The top list ("For our addons") is ticked to start
      with; the "Optional extras" under it are up to you.
   5. Press Install / update. When it says Done, start the game from OctoLauncher
-     as usual. Run it again any time to update.
+     as usual, or with the "Play OctoWoW" desktop shortcut (never WoW.exe
+     itself). Run it again any time to update.
 
 "Check for updates" only tells you what would change. It changes nothing.
 Right-click a DLL in the window to open its page.
