@@ -2,6 +2,7 @@
 
 An **install / update tool** for the **OctoWoW** client DLLs. It puts in the DLLs you don't have yet, and brings the ones you have up to the newest version, straight from their authors' release pages.
 Tick what you want, press **Install / update**. No add-ons needed. Run it again any time to update.
+**On Linux?** See [Linux](#linux-wine-proton-lutris): one terminal command does the same.
 
 ![The installer window](images/window.png)
 
@@ -115,6 +116,49 @@ It's a well-known OctoWoW / Turtle WoW mod, but only allow it if you trust it. T
 5. Press **Install / update** again. The tool downloads into the game folder, so the exclusion covers the download too.
 
 **Another antivirus** (Avast, Norton, McAfee ...): look in its *Quarantine* or *Exceptions*, restore `SuperWoWhook.dll`, or add the game folder as an exception.
+
+## Linux (Wine, Proton, Lutris)
+
+The window and the `.bat` are Windows-only. On Linux use **`install-linux.sh`** instead. It does the same job in a terminal: the same DLL list, the same tick boxes, the same safety rules. It only needs `bash`, `curl` and `unzip`, which nearly every Linux already has.
+
+**Quickest: one line, nothing to download first**
+
+Open a terminal and paste this, with your own game folder at the end (the folder with `WoW.exe` in it):
+
+```
+bash <(curl -fsSL https://raw.githubusercontent.com/bdot89/OctoDLLInstaller/main/install-linux.sh) ~/Games/OctoWoW
+```
+
+**Or from the release zip**
+
+1. Download the zip from the [latest release](https://github.com/bdot89/OctoDLLInstaller/releases/latest) and unzip it.
+2. Open a terminal in the unzipped `Octo DLL Installer` folder.
+3. Run `bash install-linux.sh ~/Games/OctoWoW` with your own game folder. Leave the folder out and it asks you for it (Tab completes the path).
+
+**Then**
+
+1. **Close the game** first.
+2. You see the list. Type numbers to tick or untick (like `7 9`), `c` to only check for updates, or just press **Enter** to install / update.
+3. It puts the DLLs in, adds them to `dlls.txt`, and puts in VanillaFixes if it's missing, just as on Windows.
+4. **Start the game through `VanillaFixes.exe`, never `WoW.exe`**, or none of the DLLs load:
+   - **Plain Wine:** the tool makes **`Play OctoWoW.sh`** in the game folder and a **Play OctoWoW** launcher on your desktop and in your app menu. The first time, your desktop may ask you to allow launching it.
+   - **Lutris:** right-click the game > **Configure** > **Game options** > **Executable**: pick `VanillaFixes.exe` in the game folder.
+   - **Steam / Proton** (as a non-Steam game): **Properties** > **Target**: the game folder's `VanillaFixes.exe`, **Start in**: the game folder.
+   - **OctoLauncher** under Wine: turn its **vanillaFixes** mod on, as on Windows.
+
+The tool prints the right one of these for your setup when it's done.
+
+**Options:** `--check` only says what would change. `--yes` skips the list and installs what's ticked to start with. `--only "SuperWoW,LockPort"` installs just those. `--no-shortcut` makes no launcher.
+
+**Good to know on Linux**
+
+- **pfUI Octo:** with OctoLauncher, add `https://github.com/bdot89/pfUI` as a custom git addon, as above. Without the launcher, unzip `pfUI.zip` from the [pfUI Octo releases](https://github.com/bdot89/pfUI-Octo/releases/latest) into `Interface/AddOns`.
+- Folders with odd upper/lower case (`Interface/Addons`, `Nampower.dll`) are found and used as they are.
+- The first start after new DLLs, VanillaFixes may ask you to confirm the DLL list once: say yes.
+- **WowPresence** (Discord status) only reaches Discord on Linux through a Wine-to-Discord bridge such as *rpc-bridge* or *wine-discord-ipc-bridge*. The rest of the DLLs don't need anything extra.
+- No antivirus steps are needed: Linux doesn't block SuperWoW.
+- There's no AppImage on purpose. An AppImage would only wrap this same script, and the script runs on any Linux that has bash.
+- **Not tested on a real Linux PC yet.** It was tested in bash on Windows against a pretend game folder (real downloads, real installs, updates and dlls.txt). If something goes wrong, tell us on Discord.
 
 ## Nothing opens?
 

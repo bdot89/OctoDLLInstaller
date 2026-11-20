@@ -24,7 +24,7 @@ param([string]$GameDir = "", [switch]$NoWindow, [string]$Snapshot = "", [switch]
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $headers = @{ "User-Agent" = "Octo-DLL-Installer" }
-$VERSION = "1.3.0"
+$VERSION = "1.4.0"
 $OCTOGIT = "https://octowow.st/git/api/v1/repos/"
 
 # Fields: Name, File (the DLL in the game folder), About, and where it comes from:

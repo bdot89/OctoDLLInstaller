@@ -128,6 +128,25 @@ SUPERWOW AND WINDOWS DEFENDER
   Another antivirus (Avast, Norton, McAfee ...): look in its Quarantine or
   Exceptions, restore SuperWoWhook.dll or add the game folder as an exception.
 
+LINUX (WINE, PROTON, LUTRIS)
+  The window and the .bat are Windows-only. On Linux use install-linux.sh in
+  this folder: the same DLLs, tick list and safety rules, in a terminal. It
+  needs only bash, curl and unzip.
+    1. Close the game.
+    2. Open a terminal in this folder and run, with your own game folder
+       (the one with WoW.exe in it):
+         bash install-linux.sh ~/Games/OctoWoW
+       Leave the folder out and it asks for it.
+    3. Type numbers to tick / untick, c to only check, Enter to install / update.
+    4. Start the game through VanillaFixes.exe, never WoW.exe:
+       - plain Wine: the "Play OctoWoW" launcher it makes (desktop + app menu,
+         or Play OctoWoW.sh in the game folder)
+       - Lutris: Configure > Game options > Executable = VanillaFixes.exe
+       - Steam / Proton: Properties > Target = VanillaFixes.exe in the game folder
+  Options: --check, --yes, --only "SuperWoW,LockPort", --no-shortcut.
+  WowPresence only reaches Discord through a Wine-Discord bridge (rpc-bridge).
+  Not tested on a real Linux PC yet.
+
 UNDO
   Copy the old DLL back from DLL-backups into the game folder, or rename
   dlls.txt.pfui-backup back to dlls.txt. To drop one DLL, take its line out of
