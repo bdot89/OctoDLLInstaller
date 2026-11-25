@@ -4,8 +4,9 @@
 # button to install them the same way ours does. It should be really easy to
 # do and clear what you need to do to get it to work."
 #
-# Installs exactly as pfUI Octo's tools\install_dlls.ps1 does: the newest
-# release from each author's page, checked to be a Windows DLL, copied only
+# Installs exactly as pfUI Octo's tools\install_dlls.ps1 does: one pinned
+# release from each author's page (1.5.0: its tag and the DLL's SHA-256 are
+# written below - a file with another hash is refused), copied only
 # when it differs (the old one kept in <game>\DLL-backups), never over a newer
 # build you already have, and added to dlls.txt (backed up once to
 # dlls.txt.pfui-backup). Start it with "Install or update DLLs.bat".
@@ -24,62 +25,94 @@ param([string]$GameDir = "", [switch]$NoWindow, [string]$Snapshot = "", [switch]
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $headers = @{ "User-Agent" = "Octo-DLL-Installer" }
-$VERSION = "1.4.0"
+$VERSION = "1.5.0"
 $OCTOGIT = "https://octowow.st/git/api/v1/repos/"
 
-# Fields: Name, File (the DLL in the game folder), About, and where it comes from:
-#   Repo (+ Api / Site when not GitHub)  the newest release: the DLL itself, or a .zip holding it
-#   Archive                              a repository download (.zip) holding the DLL
-#   Url (+ Tag)                          the DLL itself, from a plain link
+# (1.5.0, 25 Nov 2026, code review: "pulls /releases/latest of every DLL, checked only for MZ" - one hacked or broken
+# upstream release would reach every player.) Every download is PINNED: a release Tag, and the SHA-256 of the DLL
+# (Sha256) that was tested. The installer fetches that release by its tag, never "the newest", and a file whose hash
+# differs is refused in red and never copied. Plain links and repository downloads are pinned to one commit and the
+# file's own SHA-256. To move a pin: test the new release in game, then change its Tag (or commit link) and Sha256
+# here and in install-linux.sh, in one commit:  Get-FileHash <the dll> -Algorithm SHA256
+#
+# Fields: Name, File (the DLL in the game folder), About, Sha256 (the DLL's), and where it comes from:
+#   Repo + Tag (+ Api / Site when not GitHub)  that release: the DLL itself, or a .zip holding it
+#   Archive                              a repository download (.zip, of one commit) holding the DLL
+#   Url (+ Tag = a label)                the DLL itself, from a plain link (to one commit)
 # Ours = used by our addons (first list, ticked; Used = which ones); Helper = a DLL
 # one of our addons brings with its own installer (Source, Script inside it).
-# Addon = the addon (its .toc name) that comes in the download, or from AddonZip.
+# Addon = the addon (its .toc name) that comes in the download, or from AddonZip (one commit's
+# download; AddonSha256 = the zip's SHA-256 when it is a plain file, not made on the fly).
 # Extras = files beside the DLL (Path in the game folder; Url when not in the
-# download; Keep = never replaced once there). Warn = shown in gold. Page = its page.
+# download; Keep = never replaced once there; Sha256 = the file's, for programs and
+# downloaded files). Warn = shown in gold. Page = its page.
+# (pins checked 25 Nov 2026: our five are the same tags and hashes as pfUI Octo's tools\install_dlls.ps1, the DLLs in
+# the game here byte for byte; the extras are each one's release that day - AuctionQueryThrottle, Interact and
+# VanillaFixes are also the files in the game here)
 $DLLS = @(
   # ---- used by our addons ----
-  @{ Name = "ClassicAPI"; Repo = "brues-code/ClassicAPI"; File = "ClassicAPI.dll"; Ours = $true
+  @{ Name = "ClassicAPI"; Repo = "brues-code/ClassicAPI"; File = "ClassicAPI.dll"; Ours = $true; Tag = "v1.23.9"
+     Sha256 = "6E79A2862602CF9212319292EBFB9B6D555FB62ACD0F2EA5EE9F5ACC490AABC4"
      Used = "pfUI Octo, OctoBG, DmorphOcto, WhoDidIt, OctoArenaFrames, KillShot, UpsiAuras"
      About = "Newer game functions for add-ons: auras, casts, items, loot, the combat log." },
-  @{ Name = "SuperWoW"; Repo = "balakethelock/SuperWoW"; File = "SuperWoWhook.dll"; Ours = $true
+  # (its release tag is "Release"; the release's name says 2.2)
+  @{ Name = "SuperWoW"; Repo = "balakethelock/SuperWoW"; File = "SuperWoWhook.dll"; Ours = $true; Tag = "Release"
+     Sha256 = "BD214B32C878649E94CE654835946BD05E0CE7710E8F01BAE10D8AB50A89351D"
      Used = "nearly all: pfUI Octo, OctoBG, DmorphOcto, WhoDidIt, OctoRank, OctoArenaFrames, OctoKicks, KillShot, OctoOmniCC, UpsiAuras, HoryRogue, shootyepgp"
      About = "Unit GUIDs, cast events, focus and mouseover casting." },
-  @{ Name = "nampower"; Repo = "brues-code/nampower"; File = "nampower.dll"; Ours = $true
+  @{ Name = "nampower"; Repo = "brues-code/nampower"; File = "nampower.dll"; Ours = $true; Tag = "v4.6.1"
+     Sha256 = "304BDB35BC00B18EE092B3BC01195319F717C37D9C6BABE6775E8FE278229D22"
      Used = "pfUI Octo, OctoBG, DmorphOcto, WhoDidIt, OctoRank, OctoArenaFrames, UpsiAuras, HoryRogue"
      About = "Faster spell casting (less delay between casts) and spell events for add-ons." },
-  @{ Name = "UnitXP_SP3"; Repo = "brues-code/UnitXP_SP3"; File = "UnitXP_SP3.dll"; Ours = $true
+  @{ Name = "UnitXP_SP3"; Repo = "brues-code/UnitXP_SP3"; File = "UnitXP_SP3.dll"; Ours = $true; Tag = "v90"
+     Sha256 = "1D1A622FC4FD74864BDD5AA29D8C4ED2DD5CBB0340F978CBF4DACA815235D10A"
      Used = "pfUI Octo, WhoDidIt"
      About = "Distances, line of sight and better camera / targeting options." },
-  @{ Name = "WeirdUtils"; Repo = "MarcelineVQ/WeirdUtils"; File = "weirdutils_noperf.dll"; Api = "https://codeberg.org/api/v1/repos/"; Site = "codeberg.org/"; Ours = $true
+  @{ Name = "WeirdUtils"; Repo = "MarcelineVQ/WeirdUtils"; File = "weirdutils_noperf.dll"; Api = "https://codeberg.org/api/v1/repos/"; Site = "codeberg.org/"; Ours = $true; Tag = "v0.7.1"
+     Sha256 = "29FB2573C899AC378A41FF52CD652AB26494D7911CE5C524EA1F49273F492E76"
      Used = "pfUI Octo, OctoBG"
      About = "World markers, minimap icons, a transmog fix, a bigger cursor and more." },
   @{ Name = "DmorphHelper"; File = "DmorphHelper.dll"; Helper = "DmorphOcto"; Source = "helper\DmorphHelper.dll"; Script = "tools\install_helper.ps1"; Ours = $true
      Used = "DmorphOcto"; Page = "https://github.com/bdot89/DmorphOcto"
      About = "Weapon glows, your own skin / face / hair, sizes and more in DmorphOcto. Comes with DmorphOcto and is put in by its own installer." },
   # ---- optional extras: the Vanilla Addon Index's DLL list ----
-  @{ Name = "AuctionQueryThrottle"; Repo = "brues-code/AuctionQueryThrottle"; File = "AuctionQueryThrottle.dll"; From = "brues-code, GitHub"
-     About = "No 5-second wait between auction house searches: the next one goes as soon as the server answers." },
-  @{ Name = "Interact"; Repo = "lookino/Interact"; File = "Interact.dll"; Addon = "Interact"; From = "lookino, GitHub"
+  # (unticked unless you tick it, as in pfUI Octo's installer: it changes how often the game may search the auction house)
+  @{ Name = "AuctionQueryThrottle"; Repo = "brues-code/AuctionQueryThrottle"; File = "AuctionQueryThrottle.dll"; From = "brues-code, GitHub"; Tag = "v1.2.0"
+     Sha256 = "720B7AD72941206249DF23CB9D36ADDAFA2634F190081F7B33834B84AF184F5E"
+     About = "Your call (off unless you tick it): lifts the game's 5-second wait between auction house searches, so the next search goes as soon as the server answers." },
+  @{ Name = "Interact"; Repo = "lookino/Interact"; File = "Interact.dll"; Addon = "Interact"; From = "lookino, GitHub"; Tag = "v1.0.4"
+     Sha256 = "AB716314EED559A10607ECDC655F71911196FFAE69706CF1D373D01DF86A915D"
      Warn = "v1.0.4 crashed OctoWoW on every key press when we tried it (29 Oct 2026)."
      About = "An interact key: one key to talk to, loot or use what's in front of you. Comes with its key binding addon." },
-  @{ Name = "LockPort"; Archive = "https://octowow.st/git/OEVG/LockPort/archive/main.zip"; File = "LockPort.dll"; Addon = "LockPort"; From = "OEVG, octowow.st"
+  # (no releases: the repository as it was at one commit)
+  @{ Name = "LockPort"; Archive = "https://octowow.st/git/OEVG/LockPort/archive/9227c16f0a6dd77cb9fef5d1e1aa8967d54da000.zip"; Tag = "(9227c16)"; File = "LockPort.dll"; Addon = "LockPort"; From = "OEVG, octowow.st"
+     Sha256 = "96BDB518E0B58106D585B7A9C577CD3437B497F97178656B4FC7FE68ACD777C8"
      Page = "https://octowow.st/git/OEVG/LockPort"
      About = "For warlocks: summons the people who type 123, with Auto Summon. Comes with the LockPort addon." },
-  @{ Name = "OctoBus"; Repo = "Phridgey/OctoBus"; File = "ZepSense.dll"; Addon = "OctoBus"; AddonZip = "https://octowow.st/git/OEVG/Octobus/archive/main.zip"; From = "Phridgey / OEVG"
+  @{ Name = "OctoBus"; Repo = "Phridgey/OctoBus"; File = "ZepSense.dll"; Addon = "OctoBus"; AddonZip = "https://octowow.st/git/OEVG/Octobus/archive/c3455b32169f7464068f26c043976aa888a15af1.zip"; From = "Phridgey / OEVG"; Tag = "1.3.1"
+     Sha256 = "8E68DFBB64CF95FABF255B7C36679E4487DB5336461FB9A1B966014DF918D932"
      Page = "https://octowow.st/git/OEVG/Octobus"
      About = "Zeppelin and boat timers for Orgrimmar. ZepSense.dll lets the OctoBus addon see the transports; the addon comes with it." },
-  @{ Name = "TotemCircles"; Repo = "veber01/Octo-TotemCircles"; Api = $OCTOGIT; Site = "octowow.st/git/"; File = "TotemCircles.dll"; Addon = "TotemCircles"; From = "veber01, octowow.st"
+  @{ Name = "TotemCircles"; Repo = "veber01/Octo-TotemCircles"; Api = $OCTOGIT; Site = "octowow.st/git/"; File = "TotemCircles.dll"; Addon = "TotemCircles"; From = "veber01, octowow.st"; Tag = "v0.5"
+     Sha256 = "5F8E9965D1B0E0847B7D2F31C1F08B22BF1E891DF000B86AAC818B74B8A0E42D"
      About = "For shamans: shows your totems' ranges as circles on the ground. Comes with the TotemCircles addon." },
-  @{ Name = "PerfBoost"; Url = "https://github.com/RetroCro/TurtleWoW-Mods/raw/main/Archive/DLL%20BACKUP/perf_boost.dll"; Tag = "(archived copy)"; File = "perf_boost.dll"
-     Addon = "PerfBoostSettings"; AddonZip = "https://github.com/RetroCro/TurtleWoW-Mods/raw/main/Archive/DLL%20BACKUP/perfboostsettings.zip"; From = "avitasia (archive)"
+  @{ Name = "PerfBoost"; Url = "https://github.com/RetroCro/TurtleWoW-Mods/raw/5ce2e1b43eb07d17a8d25a7ba5f610aa666c006a/Archive/DLL%20BACKUP/perf_boost.dll"; Tag = "(archived copy)"; File = "perf_boost.dll"
+     Sha256 = "7019E2F31C4F56CAA616F1B4B2587C56FF276F2C27C9F35535E2578EAFBD4DBE"
+     Addon = "PerfBoostSettings"; AddonZip = "https://github.com/RetroCro/TurtleWoW-Mods/raw/5ce2e1b43eb07d17a8d25a7ba5f610aa666c006a/Archive/DLL%20BACKUP/perfboostsettings.zip"; From = "avitasia (archive)"
+     AddonSha256 = "9A0E0D74E8C638589ECF7A50B83E37FBE069FF95B41083DED34E30F4E6B2E3BA"
      Page = "https://github.com/RetroCro/TurtleWoW-Mods"
      Warn = "An old archived copy (its own page is gone), never tried on OctoWoW."
      About = "More FPS: draws far-away players, creatures and spell effects less, with city and combat settings. Comes with PerfBoostSettings." },
-  @{ Name = "WoWTranslate"; Repo = "jhinzuo2/wow-translate"; File = "WoWTranslate.dll"; Addon = "WoWTranslate"; From = "jhinzuo2, GitHub"
-     Extras = @(@{ Path = "cacert.pem"; Url = "https://curl.se/ca/cacert.pem"; Keep = $true; Text = "BEGIN CERTIFICATE" })
+  @{ Name = "WoWTranslate"; Repo = "jhinzuo2/wow-translate"; File = "WoWTranslate.dll"; Addon = "WoWTranslate"; From = "jhinzuo2, GitHub"; Tag = "v1.5"
+     Sha256 = "81449935B0532A8AAC9FD642E4E4B1DC499732ED042D34545383044E7C0D17EA"
+     # (curl's dated copy of the certificate list, not the one that changes)
+     Extras = @(@{ Path = "cacert.pem"; Url = "https://curl.se/ca/cacert-2026-11-05.pem"; Keep = $true; Text = "BEGIN CERTIFICATE"
+                   Sha256 = "427C064216761A1E72A8B30F0D954D08CB6E4435A82091FB865AFD20C8497285" })
      About = "Translates chat between Chinese (also Japanese, Korean, Russian) and English, both ways, through Google Translate. Comes with its addon." },
-  @{ Name = "WowPresence"; Repo = "Dusk/WowPresence"; Api = $OCTOGIT; Site = "octowow.st/git/"; File = "WowPresence.dll"; From = "Dusk, octowow.st"
-     Extras = @(@{ Path = "WowPresence.exe" }, @{ Path = "WowPresence\discord_application_id"; Keep = $true }, @{ Path = "WowPresence\discord_broadcast_flags"; Keep = $true })
+  @{ Name = "WowPresence"; Repo = "Dusk/WowPresence"; Api = $OCTOGIT; Site = "octowow.st/git/"; File = "WowPresence.dll"; From = "Dusk, octowow.st"; Tag = "v1.3"
+     Sha256 = "8114DE12C2A497FD0E185E94367F583F576EB650DE4A1FC7011A68B88B5D51D2"
+     Extras = @(@{ Path = "WowPresence.exe"; Sha256 = "BBE039D4D9BF14F7ECCE680556E02705CD56F3CE4C3BDF3B47C2FC397A680910" },
+                @{ Path = "WowPresence\discord_application_id"; Keep = $true }, @{ Path = "WowPresence\discord_broadcast_flags"; Keep = $true })
      Remind = @{ File = "WowPresence\discord_application_id"; Ok = '^\d{15,22}$'
                  Text = "put your own Discord Application ID in WowPresence\discord_application_id in the game folder (how: right-click WowPresence here > Open its page)." }
      About = "Shows your character and zone in Discord. Needs your own Discord Application ID (its page says how)." }
@@ -104,6 +137,12 @@ function Get-BuildDate([string]$path) {
   } catch { return $null }
 }
 function Test-GameDir([string]$dir) { return ($dir -and (Test-Path (Join-Path $dir "WoW.exe"))) }
+# (1.5.0) the file is the one that was tested: its SHA-256 is the pinned one. No pin = refused too.
+function Test-Pin([string]$path, [string]$want) {
+  if (-not $want -or -not (Test-Path $path)) { return $false }
+  return ((Get-FileHash $path -Algorithm SHA256).Hash -eq $want.ToUpper())
+}
+function Get-Sha([string]$path) { return (Get-FileHash $path -Algorithm SHA256).Hash }
 
 # a DLL's page (right-click > Open its page)
 function Get-Page($d) {
@@ -118,9 +157,11 @@ function Get-Why($err) {
   return $why.Trim()
 }
 # download a .zip and unpack it into $dir
-function Get-Zip([string]$url, [string]$dir) {
+function Get-Zip([string]$url, [string]$dir, [string]$sha = "") {
   $zpath = $dir + ".zip"
   Invoke-WebRequest -Uri $url -OutFile $zpath -Headers $headers -UseBasicParsing -TimeoutSec 120
+  # (1.5.0) a plain zip file is pinned by its own SHA-256 (made-on-the-fly repository zips by their commit link)
+  if ($sha -and -not (Test-Pin $zpath $sha)) { throw ("REFUSED - not the tested file (SHA-256 {0}, expected {1}). Left as it is." -f (Get-Sha $zpath), $sha) }
   Expand-Archive -Path $zpath -DestinationPath $dir -Force
   return $dir
 }
@@ -197,7 +238,7 @@ function Install-Addon($d, [string]$from, [string]$game, [string]$stamp, [bool]$
   $ver = Get-TocVersion $toc.FullName
   # (Interact's says "GIT": only a number is shown)
   $label = if ($ver -match '\d') { "{0} addon {1}" -f $addon, $ver } else { "{0} addon" -f $addon }
-  if ($differ.Count -eq 0) { & $say ("{0}: already the newest." -f $label) "ok"; return "same" }
+  if ($differ.Count -eq 0) { & $say ("{0}: already this version." -f $label) "ok"; return "same" }
   $mineToc = Join-Path $dst ($addon + ".toc")
   $there = Test-Path $mineToc
   if ($there) {
@@ -250,6 +291,10 @@ function Install-Extras($d, [string]$from, [string]$game, [string]$temp, [string
       if ($f) { $src = $f.FullName }
     }
     if (-not $src) { & $say ("{0}: the download has no {1} - left as it is." -f $d.Name, $x.Path) "warn"; continue }
+    # (1.5.0) programs and downloaded files: only the tested one
+    if (($x.Sha256 -or $x.Url) -and -not (Test-Pin $src $x.Sha256)) {
+      $script:refused++; & $say ("{0}: {1} REFUSED - not the tested file (SHA-256 {2}, expected {3}). Left as it is." -f $d.Name, $x.Path, (Get-Sha $src), $x.Sha256) "bad"; continue
+    }
     $was = Test-Path $dst
     if ($was -and ((Get-FileHash $src).Hash -eq (Get-FileHash $dst).Hash)) { continue }
     if ($check) { & $say ("{0}: would be {1}." -f $x.Path, $(if ($was) { "updated" } else { "put in the game folder" })) "info"; $did = $true; continue }
@@ -281,7 +326,7 @@ function Install-One($d, [string]$game, [System.Collections.ArrayList]$lines, [s
     try { Invoke-WebRequest -Uri $d.Url -OutFile $got -Headers $headers -UseBasicParsing -TimeoutSec 120 }
     catch { & $say ("{0}: skipped - {1}" -f $name, (Get-Why $_)) "warn"; return "skipped" }
   } elseif ($d.Archive) {
-    $byVersion = $false
+    $tag, $byVersion = $d.Tag, $false
     try { $pkg = @(Get-Zip $d.Archive (Join-Path $temp $name))[-1] }
     catch { & $say ("{0}: skipped - {1}" -f $name, (Get-Why $_)) "warn"; return "skipped" }
     $inside = Get-ChildItem -Path $pkg -Recurse -Filter $file | Select-Object -First 1
@@ -289,7 +334,8 @@ function Install-One($d, [string]$game, [System.Collections.ArrayList]$lines, [s
   } else {
     try {
       $api = if ($d.Api) { $d.Api } else { "https://api.github.com/repos/" }
-      $rel = Invoke-RestMethod -Uri ($api + $d.Repo + "/releases/latest") -Headers $headers -TimeoutSec 30
+      # (1.5.0) the pinned release, by its tag - never "the newest"
+      $rel = Invoke-RestMethod -Uri ($api + $d.Repo + "/releases/tags/" + [Uri]::EscapeDataString($d.Tag)) -Headers $headers -TimeoutSec 30
     } catch {
       & $say ("{0}: couldn't reach its download page ({1}). Check your internet and try again." -f $name, $_.Exception.Message) "warn"
       return "skipped"
@@ -316,6 +362,11 @@ function Install-One($d, [string]$game, [System.Collections.ArrayList]$lines, [s
   $label = ("{0} {1}" -f $name, $tag).Trim()
   if (-not $inside) { & $say ("{0}: the download has no {1} - left as it is." -f $label, $file) "warn"; return "skipped" }
   if (-not (Test-Dll $got)) { & $say ("{0}: the download is not a DLL - left as it is." -f $label) "warn"; return "skipped" }
+  # (1.5.0) the exact file that was tested, or nothing
+  if (-not (Test-Pin $got $d.Sha256)) {
+    $script:refused++; & $say ("{0}: REFUSED - the download is not the tested file (SHA-256 {1}, expected {2}). Left as it is." -f $label, (Get-Sha $got), $d.Sha256) "bad"
+    return "skipped"
+  }
 
   $target = Join-Path $game $file
   $same = (Test-Path $target) -and ((Get-FileHash $got).Hash -eq (Get-FileHash $target).Hash)
@@ -337,7 +388,7 @@ function Install-One($d, [string]$game, [System.Collections.ArrayList]$lines, [s
     & $say ("{0}: kept - {1}." -f $label, $mine) "ok"
     $result = "kept"
   } elseif ($same) {
-    & $say ("{0}: already the newest." -f $label) "ok"
+    & $say ("{0}: already this version." -f $label) "ok"
   } elseif ($check) {
     & $say ("{0}: would be {1}." -f $label, $(if (Test-Path $target) { "updated" } else { "installed" })) "info"
     $result = "changed"
@@ -362,8 +413,12 @@ function Install-One($d, [string]$game, [System.Collections.ArrayList]$lines, [s
   if ($d.Addon) {
     $from = $pkg
     if ($d.AddonZip) {
-      try { $from = @(Get-Zip $d.AddonZip (Join-Path $temp ($name + "-addon")))[-1] }
-      catch { & $say ("{0} addon: skipped - {1}" -f $d.Addon, (Get-Why $_)) "warn"; $from = $null }
+      try { $from = @(Get-Zip $d.AddonZip (Join-Path $temp ($name + "-addon")) $d.AddonSha256)[-1] }
+      catch {
+        if ($_.Exception.Message -like "REFUSED*") { $script:refused++; & $say ("{0} addon: {1}" -f $d.Addon, $_.Exception.Message) "bad" }
+        else { & $say ("{0} addon: skipped - {1}" -f $d.Addon, (Get-Why $_)) "warn" }
+        $from = $null
+      }
     }
     if ($from) {
       $r = @(Install-Addon $d $from $game $stamp $check $say)
@@ -401,7 +456,7 @@ function Install-Helper($d, [string]$game, [string]$stamp, [bool]$check, $say) {
   $same = (Test-Path $target) -and ((Get-FileHash $src).Hash -eq (Get-FileHash $target).Hash)
   $ver = Get-TocVersion (Join-Path $adir ($d.Helper + ".toc"))
   $label = if ($ver) { "{0} (from {1} {2})" -f $d.Name, $d.Helper, $ver } else { $d.Name }
-  if ($same -and $listed) { & $say ("{0}: already the newest." -f $label) "ok"; return "same" }
+  if ($same -and $listed) { & $say ("{0}: already this version." -f $label) "ok"; return "same" }
   if (-not $same -and (Test-Path $target)) {
     $have, $new = (Get-BuildDate $target), (Get-BuildDate $src)
     if ($have -and $new -and $have -gt $new) { & $say ("{0}: kept - yours is a newer build ({1})." -f $label, $have.ToString("d MMM yyyy")) "ok"; return "kept" }
@@ -434,19 +489,16 @@ function Install-Helper($d, [string]$game, [string]$stamp, [bool]$check, $say) {
 # are taken from its release - never its d3d9.dll / dxvk.conf (OctoLauncher's DXVK is newer).
 # (the -dxvk zip: on our test PC Windows Defender blocked the plain zip's extra DLL and the whole unpack with
 # it; only the two files are ever taken out of the zip, nothing else is unpacked)
+# (1.5.0) pinned: always this release (also OctoLauncher's), and each file must be the tested one
 $VFPINNED = "https://github.com/hannesmann/vanillafixes/releases/download/v1.5.3/vanillafixes-1.5.3-dxvk.zip"
+$VFSHA = @{ "VanillaFixes.exe" = "228D7BB5E3B5B0C2062D6C5F40C38C2A173E4C80D8A5D9E4077BE800431B48A3"
+            "VfPatcher.dll"    = "F283B6B5AD8042E7995EFF9768C150042DD47DE6E5F00FFE530D2E67743DF81D" }
 function Install-VanillaFixes([string]$game, [string]$temp, [bool]$check, $say) {
   $missing = @("VanillaFixes.exe", "VfPatcher.dll" | Where-Object { -not (Test-Path (Join-Path $game $_)) })
   if ($missing.Count -eq 0) { & $say "VanillaFixes: there (it is what loads dlls.txt; OctoLauncher keeps it up to date)." "ok"; return $false }
   if ($check) { & $say ("VanillaFixes: missing ({0}) - would be installed." -f ($missing -join ", ")) "info"; return $true }
   & $say "Getting VanillaFixes (it loads the DLLs in dlls.txt)..." "dim"
-  $url = $null
-  try {
-    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/hannesmann/vanillafixes/releases/latest" -Headers $headers -TimeoutSec 30
-    $a = @($rel.assets | Where-Object { $_.name -match '^vanillafixes-[\d.]+-dxvk\.zip$' }) | Select-Object -First 1
-    if ($a) { $url = $a.browser_download_url }
-  } catch { }
-  if (-not $url) { $url = $VFPINNED }
+  $url = $VFPINNED
   $zpath = Join-Path $temp "vanillafixes.zip"
   try { Invoke-WebRequest -Uri $url -OutFile $zpath -Headers $headers -UseBasicParsing -TimeoutSec 120 }
   catch { & $say ("VanillaFixes: not done - " + (Get-Why $_)) "bad"; return $false }
@@ -457,8 +509,14 @@ function Install-VanillaFixes([string]$game, [string]$temp, [bool]$check, $say) 
     foreach ($f in $missing) {
       $e = $zip.Entries | Where-Object { $_.Name -ieq $f } | Select-Object -First 1
       if (-not $e) { & $say ("VanillaFixes: {0} was not in the download." -f $f) "bad"; return $false }
+      $x = Join-Path $temp $f
+      [IO.Compression.ZipFileExtensions]::ExtractToFile($e, $x, $true)
+      if (-not (Test-Pin $x $VFSHA[$f])) {
+        $script:refused++; & $say ("VanillaFixes: {0} REFUSED - not the tested file (SHA-256 {1}, expected {2}). Not installed." -f $f, (Get-Sha $x), $VFSHA[$f]) "bad"
+        return $false
+      }
       $t = Join-Path $game $f
-      [IO.Compression.ZipFileExtensions]::ExtractToFile($e, $t, $true)
+      Copy-Item $x $t -Force
       try { Unblock-File $t } catch { }
     }
   } catch {
@@ -547,6 +605,7 @@ function Invoke-Install([string]$game, $picked, [bool]$check, $say) {
   }
   $list = Join-Path $game "dlls.txt"
   $script:listChanged = $false
+  $script:refused = 0
   $fresh = -not (Test-Path $list)
   if ($fresh) {
     # (1.2.0) a fresh install has no dlls.txt until the game was started once: make it instead of stopping
@@ -606,6 +665,10 @@ function Invoke-Install([string]$game, $picked, [bool]$check, $say) {
   }
   $made = $false
   try { $made = @(New-PlayShortcut $game $check $say)[-1] -eq $true } catch { & $say ("Could not make the desktop shortcut: {0}" -f $_.Exception.Message) "dim" }
+  # (1.5.0) a refused download is not the antivirus: say what it is
+  if ($script:refused -gt 0) {
+    return ("Not finished: {0} download(s) REFUSED (in red above) - not the files that were tested, so they were not put in. The author's release has changed since this version of the tool: get the newest Octo DLL Installer, or tell us on the OctoWoW Discord." -f $script:refused)
+  }
   if ($check) { return "Check done - nothing was changed." }
   $gone = @(Test-Removed $game @($picked | ForEach-Object { $_.File }) $say)[-1]
   if ($gone -gt 0) { return "Not finished: your antivirus removed some files (named above). Restore them, then press Install / update again." }
@@ -613,7 +676,7 @@ function Invoke-Install([string]$game, $picked, [bool]$check, $say) {
   if ($changed -gt 0 -or $script:listChanged -or $made) {
     return "Done! $how If it won't start, copy the old DLL back from the DLL-backups folder, or put dlls.txt.pfui-backup back as dlls.txt."
   }
-  return "Everything you ticked is already the newest - nothing to do. $how"
+  return "Everything you ticked is already on its pinned version - nothing to do. $how"
 }
 
 if ($NoWindow) { return }
@@ -677,7 +740,7 @@ function Button($text, $x, $y, $w, $color) {
 
 Label "Octo DLL Installer" 20 14 222 34 $accent (New-Object Drawing.Font("Segoe UI Semibold", 18)) | Out-Null
 Label ("v" + $VERSION) 244 26 80 20 $dim | Out-Null
-Label "Install / update tool: puts the OctoWoW client DLLs in, or brings the ones you have up to the newest version." 22 50 $W 22 $dim | Out-Null
+Label "Install / update tool: puts the OctoWoW client DLLs in, or brings the ones you have up to the tested version (each file checked against its SHA-256)." 22 50 $W 22 $dim | Out-Null
 Label ("1.  Close the game completely.`n" +
        "2.  Check the game folder below is right (the folder with WoW.exe in it). Use Browse if it isn't.`n" +
        "3.  Tick the DLLs you want: the ones our addons use are ticked already, the extras under them are up to you.`n" +
@@ -732,6 +795,7 @@ function New-List($third, [int]$thirdW, $entries) {
     $tip = $d.About
     if ($d.Warn) { $tip = "Careful: " + $d.Warn + "`n" + $tip }
     if ($d.Ours) { $tip += "`nUsed by: " + $d.Used }
+    if ($d.Tag) { $tip += "`nInstalls: " + $d.Tag + " (the tested file, checked by its SHA-256)" }
     $item.ToolTipText = $tip + "`nRight-click: open its page."
     $item.Checked = [bool]$d.Ours
     $item.Tag = $d

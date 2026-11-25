@@ -1,6 +1,6 @@
 # Octo DLL Installer
 
-An **install / update tool** for the **OctoWoW** client DLLs. It puts in the DLLs you don't have yet, and brings the ones you have up to the newest version, straight from their authors' release pages.
+An **install / update tool** for the **OctoWoW** client DLLs. It puts in the DLLs you don't have yet, and brings the ones you have up to the tested version, straight from their authors' release pages. Every DLL is **pinned**: one release, checked by its SHA-256 (see [Pinned versions](#pinned-versions)).
 Tick what you want, press **Install / update**. No add-ons needed. Run it again any time to update.
 **On Linux?** See [Linux](#linux-wine-proton-lutris): one terminal command does the same.
 
@@ -39,7 +39,7 @@ The DLLs only load when the game starts **through VanillaFixes**. Starting `WoW.
 5. **Tick** the DLLs you want. The top list, **For our addons**, is ticked to start with; the **Optional extras** under it are up to you.
 6. Press **Install / update**. When it says *Done*, start the game from **OctoLauncher** as usual, or with the **Play OctoWoW** desktop shortcut (never `WoW.exe` itself).
 
-**To update later**, just run it again: DLLs you don't have are installed, older ones are updated, and the newest ones are left alone.
+**To update later**, get the newest Octo DLL Installer and run it again: DLLs you don't have are installed, older ones are brought up to the pinned version, and ones already on it (or newer) are left alone.
 **Check for updates** only tells you what would change. It changes nothing. **Right-click** a DLL to open its page.
 
 ![After a check: what's newest and what would change](images/check.png)
@@ -61,7 +61,7 @@ From the [Vanilla Addon Index](https://vanilla-addon-index.github.io/?type=dll)'
 
 | DLL | What it does |
 | --- | --- |
-| [AuctionQueryThrottle](https://github.com/brues-code/AuctionQueryThrottle) | No 5-second wait between auction house searches |
+| [AuctionQueryThrottle](https://github.com/brues-code/AuctionQueryThrottle) | Lifts the game's 5-second wait between auction house searches, so the next search goes as soon as the server answers. Your call: it stays off unless you tick it |
 | [Interact](https://github.com/lookino/Interact) | An interact key, with its key binding addon. **Careful:** v1.0.4 crashed OctoWoW on every key press when we tried it |
 | [LockPort](https://octowow.st/git/OEVG/LockPort) | Warlock summoning with Auto Summon, with the LockPort addon |
 | [OctoBus](https://octowow.st/git/OEVG/Octobus) | Zeppelin and boat timers: [ZepSense.dll](https://github.com/Phridgey/OctoBus) and the OctoBus addon |
@@ -81,8 +81,41 @@ From the [Vanilla Addon Index](https://vanilla-addon-index.github.io/?type=dll)'
 - **HearthDB**: only its source code, no DLL to download.
 - **PandaConquest**: an addon, no DLL in it.
 
+## Pinned versions
+
+The tool never takes "the newest release". Each DLL is pinned to **one release that was tested**, and to the **SHA-256** of its file. If a download is any other file (a replaced release, a hacked author account, a broken upload), it is **refused** in red and nothing is copied. Plain links and repository downloads are pinned to one commit and the file's own SHA-256.
+
+| DLL | Pinned to |
+| --- | --- |
+| ClassicAPI | v1.23.9 |
+| SuperWoW | tag `Release` (2.2) |
+| nampower | v4.6.1 |
+| UnitXP_SP3 | v90 |
+| WeirdUtils | v0.7.1, `weirdutils_noperf.dll` (Codeberg) |
+| DmorphHelper | the copy inside your DmorphOcto (nothing downloaded) |
+| AuctionQueryThrottle | v1.2.0 |
+| Interact | v1.0.4 |
+| LockPort | commit `9227c16` (no releases) |
+| OctoBus | ZepSense 1.3.1; the addon at commit `c3455b3` |
+| TotemCircles | v0.5 |
+| PerfBoost | archive commit `5ce2e1b` (DLL and PerfBoostSettings zip) |
+| WoWTranslate | v1.5; `cacert.pem` = curl's dated copy of 5 Nov 2026 |
+| WowPresence | v1.3 (also `WowPresence.exe`) |
+| VanillaFixes | v1.5.3 (`VanillaFixes.exe`, `VfPatcher.dll`) |
+
+Our five are the same pins as pfUI Octo's own installer. Checked 25 Nov 2026.
+
+**Moving a pin to a newer release** (for whoever looks after this tool): test the new release in game first. Then hash the file:
+
+```powershell
+Get-FileHash .\nampower.dll -Algorithm SHA256
+```
+
+(on Linux: `sha256sum nampower.dll`). Change the DLL's `Tag` and `Sha256` in `installer\OctoDLLInstaller.ps1` **and** its tag and `pin` line in `install-linux.sh`, in one commit, and release a new version of the tool.
+
 ## Safe by design
 
+- Every download must match its pinned SHA-256 (see above), or it is refused.
 - A DLL is only replaced when the download is different, and **never** when the one you have is newer.
 - Your old DLLs and addons are kept in **`DLL-backups`** inside the game folder.
 - New DLLs are added to **`dlls.txt`** (the list the launcher loads). The first time, your old list is saved as `dlls.txt.pfui-backup`.
@@ -119,7 +152,7 @@ It's a well-known OctoWoW / Turtle WoW mod, but only allow it if you trust it. T
 
 ## Linux (Wine, Proton, Lutris)
 
-The window and the `.bat` are Windows-only. On Linux use **`install-linux.sh`** instead. It does the same job in a terminal: the same DLL list, the same tick boxes, the same safety rules. It only needs `bash`, `curl` and `unzip`, which nearly every Linux already has.
+The window and the `.bat` are Windows-only. On Linux use **`install-linux.sh`** instead. It does the same job in a terminal: the same DLL list, the same tick boxes, the same safety rules. It only needs `bash`, `curl`, `unzip` and `sha256sum`, which nearly every Linux already has. It uses the same pins, checked with `sha256sum`.
 
 **Quickest: one line, nothing to download first**
 
