@@ -38,6 +38,14 @@ STARTING THE GAME (OLD INSTALLS TOO)
   - No need to drag WoW.exe onto VanillaFixes: it finds WoW.exe in its own
     folder by itself.
 
+WHITE TEXTURES, THEN ERROR #132
+  With DXVK (a d3d9.dll in the game folder) the game sometimes shows
+  everything white a few seconds after logging in, then crashes with
+  ERROR #132 inside d3d9.dll. The fix is one line in dxvk.conf:
+  d3d9.textureMemory = 0. The tool adds it for you every time you press
+  Install / update (your other lines are kept; the old file is saved once
+  as dxvk.conf.pfui-backup).
+
 HOW TO USE
   1. Close the game completely.
   2. Double-click "Install or update DLLs.bat". A window opens.

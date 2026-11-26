@@ -25,7 +25,7 @@ param([string]$GameDir = "", [switch]$NoWindow, [string]$Snapshot = "", [switch]
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $headers = @{ "User-Agent" = "Octo-DLL-Installer" }
-$VERSION = "1.5.0"
+$VERSION = "1.6.0"
 $OCTOGIT = "https://octowow.st/git/api/v1/repos/"
 
 # (1.5.0, 25 Nov 2026, code review: "pulls /releases/latest of every DLL, checked only for MZ" - one hacked or broken
@@ -592,6 +592,38 @@ function New-PlayShortcut([string]$game, [bool]$check, $say) {
   return $true
 }
 
+# (1.6.0, 26 Nov 2026) the white-textures-then-#132 crash inside DXVK's d3d9.dll (WoW 0x5A10A0 -> d3d9 +0x2FD4D,
+# memcpy from NULL), seen by three players on NVIDIA and AMD: DXVK unmaps 32-bit managed textures past
+# d3d9.textureMemory (100 MB) and a remap fails. d3d9.textureMemory = 0 never unmaps them (Wolfahrt: no crash since).
+# Only when DXVK's d3d9.dll is in the game folder; other lines in dxvk.conf are kept; backup once as .pfui-backup.
+$DXVKFIX = "d3d9.textureMemory = 0"
+function Set-DxvkConf([string]$game, [bool]$check, $say) {
+  $dll = Join-Path $game "d3d9.dll"
+  if (-not (Test-Path $dll)) { return $false }
+  $conf = Join-Path $game "dxvk.conf"
+  $lines = New-Object System.Collections.ArrayList
+  if (Test-Path $conf) { foreach ($l in [IO.File]::ReadAllLines($conf)) { [void]$lines.Add($l) } }
+  $found = $false
+  $right = $false
+  for ($i = 0; $i -lt $lines.Count; $i++) {
+    if ($lines[$i] -match '^\s*d3d9\.textureMemory\s*=\s*(\S*)') {
+      if ($found) { $lines[$i] = "# " + $lines[$i]; continue }
+      $found = $true
+      if ($Matches[1] -eq "0") { $right = $true } else { $lines[$i] = $DXVKFIX }
+    }
+  }
+  if ($right) { return $false }
+  if (-not $found) {
+    [void]$lines.Add("# (Octo DLL Installer) keep every texture mapped: stops the white textures + error #132 crash")
+    [void]$lines.Add($DXVKFIX)
+  }
+  if ($check) { & $say "dxvk.conf: would get $DXVKFIX (stops the white textures + #132 crash)." "info"; return $false }
+  if ((Test-Path $conf) -and -not (Test-Path "$conf.pfui-backup")) { Copy-Item $conf "$conf.pfui-backup" }
+  [IO.File]::WriteAllLines($conf, [string[]]$lines.ToArray())
+  & $say "dxvk.conf: $DXVKFIX set - stops the white textures followed by error #132 that DXVK can cause." "good"
+  return $true
+}
+
 # the whole run for the ticked DLLs; returns the summary line
 function Invoke-Install([string]$game, $picked, [bool]$check, $say) {
   if (-not (Test-GameDir $game)) { throw "Pick your game folder first - the one with WoW.exe in it." }
@@ -625,6 +657,8 @@ function Invoke-Install([string]$game, $picked, [bool]$check, $say) {
   $later = New-Object System.Collections.ArrayList
   try {
     if (@(Install-VanillaFixes $game $temp $check $say)[-1] -eq $true) { $changed++ }
+    try { if (@(Set-DxvkConf $game $check $say)[-1] -eq $true) { $changed++ } }
+    catch { & $say ("Could not change dxvk.conf: {0}" -f $_.Exception.Message) "dim" }
     foreach ($d in $picked) {
       if ($d.Helper) { [void]$later.Add($d); continue }
       & $say ("Getting {0}..." -f $d.Name) "dim"

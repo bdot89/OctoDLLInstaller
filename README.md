@@ -30,6 +30,10 @@ The DLLs only load when the game starts **through VanillaFixes**. Starting `WoW.
 - **Without the launcher**, or an old install: run this tool once. It puts VanillaFixes in if it's missing and makes a **Play OctoWoW** shortcut on your desktop. Always start the game with that shortcut, or by double-clicking `VanillaFixes.exe` in the game folder.
 - You don't need to drag `WoW.exe` onto VanillaFixes: it finds `WoW.exe` in its own folder by itself. Dragging is only needed if your game's exe has a different name.
 
+## White textures, then error #132
+
+With DXVK (a `d3d9.dll` in the game folder), the game sometimes shows everything white a few seconds after logging in, then crashes with **ERROR #132** inside `d3d9.dll`. The fix is one line in `dxvk.conf`: `d3d9.textureMemory = 0`. **The tool adds it for you** every time you press Install / update. It keeps your other dxvk.conf lines and saves the old file once as `dxvk.conf.pfui-backup`.
+
 ## How to use
 
 1. **Download** the zip from the [latest release](https://github.com/bdot89/OctoDLLInstaller/releases/latest) and unzip it anywhere.
